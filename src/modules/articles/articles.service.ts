@@ -1,4 +1,5 @@
-import { Article, User } from "../../models";
+import { Op, WhereOptions } from "sequelize";
+import { Article, User, ReadLog } from "../../models";
 import { AppError } from "../../shared/errors";
 import { CreateArticleInput, UpdateArticleInput } from "./articles.schema";
 
@@ -66,5 +67,82 @@ export class ArticlesService {
     }
 
     await article.destroy();
+  }
+
+  async publicFeed(
+    page: number,
+    size: number,
+    filters: { category?: string; author?: string; q?: string }
+  ) {
+    const offset = (page - 1) * size;
+
+    const where: WhereOptions = {
+      Status: "Published",
+    };
+
+    if (filters.category) {
+      where.Category = filters.category;
+    }
+
+    if (filters.q) {
+      where.Title = { [Op.iLike]: `%${filters.q}%` };
+    }
+
+    const includeAuthor: any = {
+      model: User,
+      as: "Author",
+      attributes: ["Id", "Name"],
+    };
+
+    if (filters.author) {
+      includeAuthor.where = {
+        Name: { [Op.iLike]: `%${filters.author}%` },
+      };
+    }
+
+    const { rows, count } = await Article.findAndCountAll({
+      where,
+      order: [["CreatedAt", "DESC"]],
+      limit: size,
+      offset,
+      include: [includeAuthor],
+    });
+
+    return { articles: rows, total: count };
+  }
+
+  async findById(articleId: string) {
+    // Use paranoid: false to also find soft-deleted articles,
+    // so we can return the correct error message
+    const article = await Article.findByPk(articleId, {
+      paranoid: false,
+      include: [
+        {
+          model: User,
+          as: "Author",
+          attributes: ["Id", "Name"],
+        },
+      ],
+    });
+
+    if (!article) {
+      throw AppError.notFound("Article not found");
+    }
+
+    if (article.DeletedAt) {
+      throw AppError.notFound("News article no longer available");
+    }
+
+    return article;
+  }
+
+  async logRead(articleId: string, readerId: string | null) {
+    // Fire-and-forget: don't await, don't block the response
+    ReadLog.create({
+      ArticleId: articleId,
+      ReaderId: readerId,
+    }).catch((err) => {
+      console.error("Failed to log read:", err);
+    });
   }
 }

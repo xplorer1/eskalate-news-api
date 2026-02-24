@@ -57,4 +57,41 @@ export class ArticlesController {
       next(error);
     }
   }
+
+  async publicFeed(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const size = Math.max(1, Math.min(100, parseInt(req.query.size as string) || 10));
+      const category = req.query.category as string | undefined;
+      const author = req.query.author as string | undefined;
+      const q = req.query.q as string | undefined;
+
+      const { articles, total } = await articlesService.publicFeed(
+        page,
+        size,
+        { category, author, q }
+      );
+
+      return sendPaginated(res, "Articles retrieved successfully", articles, page, size, total);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getById(req: AuthRequest & { skipReadLog?: boolean }, res: Response, next: NextFunction) {
+    try {
+      const articleId = req.params.id as string;
+      const article = await articlesService.findById(articleId);
+
+      // Log the read (fire-and-forget, non-blocking) unless rate-limited
+      if (!req.skipReadLog) {
+        const readerId = req.user?.sub ?? null;
+        articlesService.logRead(articleId, readerId);
+      }
+
+      return sendSuccess(res, "Article retrieved successfully", article);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
