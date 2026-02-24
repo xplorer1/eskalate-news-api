@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import authRoutes from "./modules/auth/auth.routes";
+import articlesRoutes from "./modules/articles/articles.routes";
 import { errorHandler } from "./middleware/errorHandler";
 
 const app = express();
@@ -13,6 +14,7 @@ app.use(express.json());
 
 // Routes
 app.use("/auth", authRoutes);
+app.use("/articles", articlesRoutes);
 
 // Health check
 app.get("/health", (_req, res) => {
