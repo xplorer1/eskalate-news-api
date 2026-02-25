@@ -3,8 +3,8 @@ import { env } from "./config/env";
 import { sequelize } from "./config/database";
 import "./models";
 import {
+  startJobQueue,
   scheduleAggregationJob,
-  startAggregationWorker,
 } from "./jobs/aggregateReadLogs";
 
 async function bootstrap() {
@@ -15,8 +15,8 @@ async function bootstrap() {
     await sequelize.sync({ alter: env.NODE_ENV === "development" });
     console.log("Database models synchronized.");
 
-    // Start BullMQ worker and schedule daily aggregation
-    startAggregationWorker();
+    // Start pg-boss job queue and schedule daily aggregation
+    await startJobQueue();
     await scheduleAggregationJob();
 
     app.listen(env.PORT, () => {

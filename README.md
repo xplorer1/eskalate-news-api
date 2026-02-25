@@ -4,16 +4,16 @@ A production-ready RESTful API where Authors publish articles and Readers consum
 
 ## Tech Stack
 
-| Layer | Technology | Rationale |
+| Layer | Technology | |
 |-------|-----------|-----------|
-| Runtime | Node.js + TypeScript | Type safety, excellent ecosystem |
-| Framework | Express.js | Minimal, flexible, battle-tested |
-| Database | PostgreSQL | Relational integrity, robust query support |
-| ORM | Sequelize | Mature, supports paranoid (soft-delete), migrations |
-| Auth | Argon2 + JWT | Argon2 is memory-hard (GPU-resistant), JWT for stateless auth |
-| Validation | Zod | Runtime + compile-time safety, composable schemas |
-| Job Queue | BullMQ + Redis | Reliable job scheduling for daily analytics aggregation |
-| Testing | Vitest + Supertest | Fast, modern test runner with HTTP assertion support |
+| Runtime | Node.js + TypeScript |
+| Framework | Express.js | 
+| Database | PostgreSQL |
+| ORM | Sequelize |
+| Auth | Argon2 + JWT |
+| Validation | Zod |
+| Job Queue | pg-boss (PostgreSQL-backed) |
+| Testing | Vitest + Supertest |
 
 ## Setup
 
@@ -21,7 +21,6 @@ A production-ready RESTful API where Authors publish articles and Readers consum
 
 - Node.js >= 18
 - PostgreSQL >= 14
-- Redis >= 6
 
 ### Installation
 
@@ -50,8 +49,6 @@ cp .env.example .env
 | `DB_PASSWORD` | Database password | — |
 | `JWT_SECRET` | Secret for signing JWTs (min 16 chars) | — |
 | `JWT_EXPIRES_IN` | Token expiry (e.g., `24h`, `7d`, `3600s`) | `24h` |
-| `REDIS_HOST` | Redis host | `localhost` |
-| `REDIS_PORT` | Redis port | `6379` |
 
 ### Create Database
 
@@ -133,7 +130,7 @@ src/
 │   ├── auth/        # Signup, login (Argon2 + JWT)
 │   ├── articles/    # CRUD + public feed + read tracking
 │   └── analytics/   # Author dashboard
-├── jobs/            # BullMQ daily aggregation worker
+├── jobs/            # pg-boss daily aggregation job
 ├── shared/          # Response builders, error classes, types
 ├── app.ts           # Express app assembly
 └── server.ts        # Bootstrap (DB connect, model sync, worker start)
@@ -144,5 +141,5 @@ src/
 - **Soft Delete**: Articles use Sequelize's `paranoid: true`, which auto-filters deleted records on all standard queries. Public endpoints never expose deleted content.
 - **Non-blocking Read Tracking**: `ReadLog` entries are created fire-and-forget — the article response is never delayed by logging.
 - **Anti-Spam Rate Limiting**: A sliding window (30s per user/IP per article) prevents inflated view counts from page refreshes.
-- **Daily Analytics Aggregation**: A BullMQ cron job runs at midnight GMT, summing raw ReadLog entries into DailyAnalytics for efficient dashboard queries.
+- **Daily Analytics Aggregation**: A pg-boss cron job runs at midnight UTC, summing raw ReadLog entries into DailyAnalytics for efficient dashboard queries. Uses the existing PostgreSQL database — no extra infrastructure required.
 - **Standardized Responses**: All endpoints return a consistent `{ Success, Message, Object, Errors }` structure (with pagination fields where applicable).

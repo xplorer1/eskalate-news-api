@@ -10,8 +10,6 @@ vi.stubEnv("DB_USER", "test_user");
 vi.stubEnv("DB_PASSWORD", "test_password");
 vi.stubEnv("JWT_SECRET", "test_jwt_secret_that_is_long_enough");
 vi.stubEnv("JWT_EXPIRES_IN", "24h");
-vi.stubEnv("REDIS_HOST", "localhost");
-vi.stubEnv("REDIS_PORT", "6379");
 
 // Mock Sequelize to avoid actual DB connections
 vi.mock("../../src/config/database", () => ({

@@ -1,38 +1,50 @@
-import { Queue, Worker } from "bullmq";
+import { PgBoss } from "pg-boss";
 import { QueryTypes } from "sequelize";
-import { redisConnection } from "../config/queue";
 import { sequelize } from "../config/database";
 import { DailyAnalytics } from "../models";
+import { env } from "../config/env";
 
-const QUEUE_NAME = "analytics-aggregation";
+const JOB_NAME = "daily-analytics-aggregation";
 
-export const aggregationQueue = new Queue(QUEUE_NAME, {
-  connection: redisConnection,
-});
+let boss: PgBoss;
 
 /**
- * Schedules the daily aggregation job to run at midnight GMT.
- * Uses BullMQ's repeatable job with a cron expression.
+ * Creates and starts the pg-boss instance.
+ * pg-boss uses the same PostgreSQL database — no extra infrastructure.
+ */
+export async function startJobQueue(): Promise<PgBoss> {
+  boss = new PgBoss({
+    host: env.DB_HOST,
+    port: env.DB_PORT,
+    database: env.DB_NAME,
+    user: env.DB_USER,
+    password: env.DB_PASSWORD,
+  });
+
+  boss.on("error", (err) => {
+    console.error("pg-boss error:", err);
+  });
+
+  await boss.start();
+  console.log("pg-boss job queue started.");
+
+  return boss;
+}
+
+/**
+ * Registers the aggregation worker and schedules the daily cron.
+ * Cron: every day at midnight UTC.
  */
 export async function scheduleAggregationJob() {
-  // Remove any existing repeatable jobs to avoid duplicates on restart
-  const existingJobs = await aggregationQueue.getRepeatableJobs();
-  for (const job of existingJobs) {
-    await aggregationQueue.removeRepeatableByKey(job.key);
-  }
+  await boss.work(JOB_NAME, async () => {
+    await processAggregation();
+  });
 
-  await aggregationQueue.add(
-    "daily-aggregate",
-    {},
-    {
-      repeat: {
-        pattern: "0 0 * * *", // Every day at midnight
-        tz: "Etc/GMT",
-      },
-    }
-  );
+  await boss.schedule(JOB_NAME, "0 0 * * *", undefined, {
+    tz: "UTC",
+  });
 
-  console.log("Daily analytics aggregation job scheduled (midnight GMT).");
+  console.log("Daily analytics aggregation job scheduled (midnight UTC).");
 }
 
 /**
@@ -72,24 +84,4 @@ async function processAggregation() {
   console.log(
     `Analytics aggregation complete. Processed ${results.length} article-date combinations.`
   );
-}
-
-export function startAggregationWorker() {
-  const worker = new Worker(
-    QUEUE_NAME,
-    async () => {
-      await processAggregation();
-    },
-    { connection: redisConnection }
-  );
-
-  worker.on("completed", (job) => {
-    console.log(`Aggregation job ${job.id} completed.`);
-  });
-
-  worker.on("failed", (job, err) => {
-    console.error(`Aggregation job ${job?.id} failed:`, err);
-  });
-
-  return worker;
 }
