@@ -85,7 +85,10 @@ export class ArticlesService {
     }
 
     if (filters.q) {
-      where.Title = { [Op.iLike]: `%${filters.q}%` };
+      where[Op.or as any] = [
+        { Title: { [Op.iLike]: `%${filters.q}%` } },
+        { Content: { [Op.iLike]: `%${filters.q}%` } },
+      ];
     }
 
     const includeAuthor: any = {
