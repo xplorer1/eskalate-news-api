@@ -56,6 +56,19 @@ cp .env.example .env
 createdb news_api
 ```
 
+### Run Migrations
+
+```bash
+npm run db:migrate
+```
+
+To rollback:
+
+```bash
+npm run db:migrate:undo      # undo last migration
+npm run db:migrate:undo:all  # undo all migrations
+```
+
 ### Run
 
 ```bash
@@ -66,8 +79,6 @@ npm run dev
 npm run build
 npm start
 ```
-
-The server auto-syncs database tables on startup in development mode.
 
 ### Test
 

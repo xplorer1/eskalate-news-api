@@ -12,9 +12,6 @@ async function bootstrap() {
     await sequelize.authenticate();
     console.log("Database connection established successfully.");
 
-    await sequelize.sync({ alter: env.NODE_ENV === "development" });
-    console.log("Database models synchronized.");
-
     // Start pg-boss job queue and schedule daily aggregation
     await startJobQueue();
     await scheduleAggregationJob();

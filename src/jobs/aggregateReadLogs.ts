@@ -36,6 +36,8 @@ export async function startJobQueue(): Promise<PgBoss> {
  * Cron: every day at midnight UTC.
  */
 export async function scheduleAggregationJob() {
+  await boss.createQueue(JOB_NAME);
+
   await boss.work(JOB_NAME, async () => {
     await processAggregation();
   });
